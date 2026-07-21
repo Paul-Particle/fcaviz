@@ -29,6 +29,16 @@ pip install "git+https://github.com/Paul-Particle/fcaviz.git"
 uv add "git+https://github.com/Paul-Particle/fcaviz.git"
 ```
 
+By default that tracks the `main` branch. For reproducible installs, **pin to a
+released tag** (see [Releasing](#releasing) for the tag list):
+
+```sh
+# pip — pinned to a tag
+pip install "git+https://github.com/Paul-Particle/fcaviz.git@v0.1.0"
+# uv — pinned to a tag
+uv add "git+https://github.com/Paul-Particle/fcaviz.git@v0.1.0"
+```
+
 Add the `export` extra for static PNG/SVG output via `save_figure` (pulls Kaleido):
 
 ```sh
@@ -58,6 +68,29 @@ pip install "fcaviz[export] @ git+https://github.com/Paul-Particle/fcaviz.git"
   via Kaleido the font must also be **installed on the OS**, otherwise Plotly falls
   back to a default sans-serif (colors/layout are unaffected).
 - **Provenance.** Ported from the canonical `lcox-steel` `viz/style.py`.
+
+## Releasing
+
+The version lives in **one place** — `__version__` in `src/fcaviz/__init__.py`.
+`pyproject.toml` reads it dynamically (via `[tool.hatch.version]`), so a release is
+just: bump that line, commit, tag, push.
+
+```sh
+# 1. bump the single source of truth, e.g. 0.1.0 -> 0.2.0
+#    edit src/fcaviz/__init__.py:  __version__ = "0.2.0"
+
+# 2. sanity-check the build picks it up
+uv build --wheel            # -> dist/fcaviz-0.2.0-py3-none-any.whl
+
+# 3. commit, tag (tag == "v" + __version__), push both
+git commit -am "fcaviz 0.2.0"
+git tag -a v0.2.0 -m "fcaviz 0.2.0"
+git push && git push --tags
+```
+
+Consumers then pin with `...git@v0.2.0` (see [Install](#install)). Use
+[semantic versioning](https://semver.org): patch for fixes, minor for additions,
+major for breaking API changes.
 
 ## Licensing
 

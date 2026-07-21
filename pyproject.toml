@@ -1,6 +1,6 @@
 [project]
 name = "fcaviz"
-version = "0.1.0"
+dynamic = ["version"]
 description = "FCA house plotting style for Plotly: palette, layout template, colormap, and brand chrome."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,3 +19,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/fcaviz"]
+
+[tool.hatch.version]
+path = "src/fcaviz/__init__.py"
