@@ -45,6 +45,31 @@ Add the `export` extra for static PNG/SVG output via `save_figure` (pulls Kaleid
 pip install "fcaviz[export] @ git+https://github.com/Paul-Particle/fcaviz.git"
 ```
 
+### Using conda
+
+`fcaviz` is a pure-Python package — there is no conda package and you don't need
+one. Create the conda env as usual, then **pip-install `fcaviz` into it**. The only
+rule when mixing the two: install conda packages first, pip packages last. The
+clean, reproducible way is to declare it in `environment.yml` (the `pip:` block runs
+last automatically on `conda env create`):
+
+```yaml
+name: my-env
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - plotly          # let conda manage the heavy deps
+  - numpy
+  - pip
+  - pip:
+      - "fcaviz @ git+https://github.com/Paul-Particle/fcaviz.git@v0.1.0"
+      # for PNG/SVG export, use fcaviz[export] instead (pulls Kaleido)
+```
+
+Or into an already-active env: `conda activate my-env` then the `pip install …`
+command above. Do **not** run `conda install` *after* pip-installing `fcaviz` in the
+same env — conda can overwrite pip-managed packages; put pip last.
+
 ## What you get
 
 - **Palette** — named brand colors (`fca_blue`, `highlight_blue`, `sand_yellow`, …)
