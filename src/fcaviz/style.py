@@ -626,10 +626,37 @@ def apply_dot(fig, geom: dict) -> None:
     )
 
 
+def logo_right_edge_x(fig) -> float:
+    """Paper-x for the monogram's right edge: a right-anchored legend's right edge
+    when one is shown, else the right end of the x-axis baseline (paper x=1).
+
+    Clamped so the logo never sits left of the baseline end. Only an explicitly set
+    right-anchored ``legend.x`` moves it right — a template default (which does not
+    surface on ``fig.layout``) leaves it at 1.0."""
+    legend = fig.layout.legend
+    if (fig.layout.showlegend is not False
+            and legend.x is not None
+            and legend.xanchor in ("right", "auto", None)):
+        return max(1.0, float(legend.x))
+    return 1.0
+
+
 def apply_logo(fig, fig_width: int, fig_height: int,
                margin_l: int, margin_r: int,
-               margin_t: int, margin_b: int) -> None:
-    """Place the brand monogram bottom-right if SHOW_LOGO is True."""
+               margin_t: int, margin_b: int,
+               *, logo_h_px: int = 22, bottom_pad_px: int = 6) -> None:
+    """Place the brand monogram in the bottom-right corner if SHOW_LOGO is True.
+
+    Alignment is derived from the geometry rather than hard-coded offsets, so it
+    holds across margins, figure sizes and subplot stacks:
+
+    - **bottom** edge sits ``bottom_pad_px`` above the figure's bottom edge, lining
+      up with the lowest element (x-axis tick labels / title) instead of floating at
+      a fixed offset inside the margin;
+    - **right** edge aligns with a right-anchored legend's right edge when one is
+      shown, otherwise with the right end of the x-axis baseline (paper x=1), and is
+      never further left than that (see ``logo_right_edge_x``).
+    """
     if not SHOW_LOGO:
         return
     logo = fca_logo()
@@ -637,11 +664,13 @@ def apply_logo(fig, fig_width: int, fig_height: int,
         return
     plot_w_px = fig_width - margin_l - margin_r
     plot_h_px = fig_height - margin_t - margin_b
-    logo_h_px = 22
+    # The figure's bottom edge is margin_b below the plot area, i.e. at paper-y
+    # -margin_b / plot_h_px; lift the logo bottom_pad_px above it.
+    y_bottom = -(margin_b - bottom_pad_px) / plot_h_px
     fig.add_layout_image(
         source=logo["source"], xref="paper", yref="paper",
         xanchor="right", yanchor="bottom",
-        x=1, y=-(margin_b - 28) / plot_h_px,
+        x=logo_right_edge_x(fig), y=y_bottom,
         sizex=logo_h_px * logo["aspect"] / plot_w_px,
         sizey=logo_h_px / plot_h_px, sizing="contain", layer="above",
     )
