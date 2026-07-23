@@ -26,6 +26,7 @@ House conventions worth knowing:
 
 import base64
 import struct
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -121,6 +122,10 @@ fca_template = go.layout.Template(
             yanchor="top",
             y=0.93,    # pinned top so the leading dot can align to it
             x=0.0,     # left-aligned fallback; apply_header recomputes x
+            # NB: this is a distinct family NAME, not weight 600 of "Titillium Web".
+            # inject_titillium_font() embeds a matching @font-face; if you output
+            # HTML another way you must embed "Titillium Web SemiBold" too or titles
+            # fall back to a system sans (it warns when it can't).
             font=dict(family="Titillium Web SemiBold", size=22, color=blue_black),
         ),
         font=dict(family="Titillium Web", size=18, color=blue_black),
@@ -498,6 +503,17 @@ def inject_titillium_font(html_str: str) -> str:
             "@font-face{font-family:'Titillium Web SemiBold';font-style:normal;"
             f"font-weight:normal;"
             f"src:url('data:font/woff2;base64,{encoded[600]}') format('woff2');}}"
+        )
+    else:
+        warnings.warn(
+            f"fcaviz: {_FONT_FILES[600].name} was not found in assets, so the "
+            "'Titillium Web SemiBold' family that the template's title uses cannot "
+            "be embedded — chart TITLES will fall back to a system sans in this HTML "
+            "(unless Titillium Web is installed on the viewer's OS). The rest of the "
+            "chart uses 'Titillium Web' and is unaffected. Fix: ship the woff2 files "
+            "in fcaviz/assets. If you build HTML yourself instead of using "
+            "save_figure(), call inject_titillium_font() on it so both families embed.",
+            stacklevel=2,
         )
     if faces:
         css = "<style>" + "".join(faces) + "</style>"
