@@ -478,14 +478,27 @@ def inject_titillium_font(html_str: str) -> str:
     when present; otherwise falls back to a Google Fonts CDN <link>.
     """
     faces = []
+    encoded = {}
     for weight, path in _FONT_FILES.items():
         if path.exists():
             b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+            encoded[weight] = b64
             faces.append(
                 "@font-face{font-family:'Titillium Web';font-style:normal;"
                 f"font-weight:{weight};"
                 f"src:url('data:font/woff2;base64,{b64}') format('woff2');}}"
             )
+    # The template's title font asks for the family name "Titillium Web SemiBold"
+    # (how the SemiBold weight installs as its own family at OS level). Nothing
+    # embeds that name above, so in portable HTML the title silently falls back to
+    # a system sans on any machine without the font installed. Alias the name to
+    # the SemiBold woff2 so titles render correctly everywhere.
+    if 600 in encoded:
+        faces.append(
+            "@font-face{font-family:'Titillium Web SemiBold';font-style:normal;"
+            f"font-weight:normal;"
+            f"src:url('data:font/woff2;base64,{encoded[600]}') format('woff2');}}"
+        )
     if faces:
         css = "<style>" + "".join(faces) + "</style>"
     else:
