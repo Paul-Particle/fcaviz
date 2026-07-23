@@ -20,7 +20,7 @@ See [`examples/quickstart.py`](examples/quickstart.py) for a runnable demo.
 
 ## Install
 
-Private repo — install straight from GitHub:
+Install straight from GitHub (public repo — no auth needed):
 
 ```sh
 # pip
