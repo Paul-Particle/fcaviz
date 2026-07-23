@@ -30,7 +30,7 @@ from .style import (
     header_geometry, apply_dot, apply_logo, apply_header,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "fca_blue", "highlight_blue", "light_blue", "sand_yellow", "green",
