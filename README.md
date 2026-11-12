@@ -1,22 +1,25 @@
 # fcaviz
 
-The **FCA house plotting style for Plotly** — palette, layout template, continuous
-colormap, and brand "chrome" (leading dot, dot-aligned title + subtitle, corner
-monogram) — packaged so you or a colleague can just install it.
+The **FCA house plotting style for Plotly** — palette, standalone and slide layout
+templates, the continuous colormap, marker helpers, and brand "chrome" (left-aligned
+title + subtitle, corner monogram, optional leading dot) — packaged so you or a
+colleague can just install it.
 
 ```python
 import plotly.graph_objects as go
 from fcaviz import fca_template, apply_header, save_figure
 
 fig = go.Figure(go.Bar(x=[2022, 2023, 2024], y=[19, 24, 31]))
-fig.update_layout(template=fca_template)   # or template="fca" (registered on import)
+fig.update_layout(template=fca_template)   # or "fca"; "fca_slide" for slides
 fig.update_yaxes(title=None)               # house convention: units go in the subtitle
 apply_header(fig, title="Capacity additions", subtitle="Annual (GW)",
-             fig_width=960, fig_height=540, margin_b=64)
+             fig_width=960, fig_height=540)
 save_figure(fig, "out", "capacity")        # font-embedded HTML (+ PNG with [export])
 ```
 
-See [`examples/quickstart.py`](examples/quickstart.py) for a runnable demo.
+See [`examples/quickstart.py`](examples/quickstart.py) for a runnable demo and
+[`examples/feature_gallery.py`](examples/feature_gallery.py) for every feature in
+both profiles.
 
 ## Install
 
@@ -34,9 +37,9 @@ released tag** (see [Releasing](#releasing) for the tag list):
 
 ```sh
 # pip — pinned to a tag
-pip install "git+https://github.com/Paul-Particle/fcaviz.git@v0.1.1"
+pip install "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
 # uv — pinned to a tag
-uv add "git+https://github.com/Paul-Particle/fcaviz.git@v0.1.1"
+uv add "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
 ```
 
 Add the `export` extra for static PNG/SVG output via `save_figure` (pulls Kaleido):
@@ -62,7 +65,7 @@ dependencies:
   - numpy
   - pip
   - pip:
-      - "fcaviz @ git+https://github.com/Paul-Particle/fcaviz.git@v0.1.1"
+      - "fcaviz @ git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
       # for PNG/SVG export, use fcaviz[export] instead (pulls Kaleido)
 ```
 
@@ -72,22 +75,63 @@ same env — conda can overwrite pip-managed packages; put pip last.
 
 ## What you get
 
-- **Palette** — named brand colors (`fca_blue`, `highlight_blue`, `sand_yellow`, …)
-  and the discrete `fca_colorway` used as the template's trace cycle.
-- **`fca_template`** — the house Plotly layout (fonts, axes, legend, sizing). Also
-  registered by name, so `fig.update_layout(template="fca")` works after import.
-- **`fca_colormap`** — a continuous blue-grey → teal → sand scale for heatmaps etc.
-- **Chrome** — `apply_header` (dot-aligned title + subtitle + corner logo),
-  `add_trace_label` (solid-chip legend replacement), and lower-level
+- **Palette** — named brand colors (`fca_blue`, `highlight_blue`, `sand_yellow`, …),
+  the discrete `fca_colorway` (blues and greys, interleaved) and the marker cycle
+  `fca_marker_symbols`, both used by the templates.
+- **Two profiles** — `fca_template` for standalone charts and `fca_slide_template`
+  for slides (heavier lines, bigger markers and fonts). Both are registered by
+  name, so `fig.update_layout(template="fca")` or `template="fca_slide"` works
+  after import. The header chrome takes its sizes from whichever the figure uses.
+- **`fca_colormap`** — the corporate design's continuous blue-grey → teal → sand
+  scale. Both templates make it the default for every colorscale (heatmaps,
+  contours, maps, colour axes, plotly express), and `sample_fca_colormap(n)`
+  returns `n` discrete shades from it.
+- **Markers** — `add_look_here_marker` (a larger highlight-blue diamond on one
+  point) and `build_thin_plus_marker` (a thin, stroke-only "+").
+- **Chrome** — `apply_header` (title + subtitle + corner logo, with an optional
+  leading dot via `show_dot=True`), `add_trace_label` (solid-chip legend
+  replacement; its white text needs a dark chip colour), and lower-level
   `apply_dot` / `apply_logo` / `header_geometry`.
 - **`save_figure`** — writes a self-contained, **font-embedded** HTML plus a retina PNG.
 - **Helpers** — `lighten`, `contrast_shades` (stacked-bar shade ordering),
   `inject_titillium_font`.
 
+## Colour, marker and line guidance
+
+- **Blues and greys first.** The default cycle alternates blue and grey, and dark
+  and light, so successive series never suggest a gradient:
+  `fca_blue, gray, light_blue, very_dark_gray, turquois, blue_gray`. `light_blue`
+  and `turquois` are close; past about six series, prefer direct labels, small
+  multiples or grouping over more colours.
+- **`highlight_blue` is a soft highlight.** Use it to draw attention to something,
+  so it is not in the default cycle. In a busy chart, where it would not stand out
+  anyway, it may be added among the series for contrast:
+  `fig.update_layout(colorway=fca_colorway + [highlight_blue])`.
+- **One accent colour, when needed.** To mark something as good or bad, or to tell
+  two similar-looking consecutive slides apart, `green` is the usual choice;
+  `magenta_red` when something stronger is needed. Other palette colours such as
+  `sand_yellow` are not part of the default chart look.
+- **One continuous colormap.** Wherever a colormap is needed, use `fca_colormap`
+  (the templates' default) or `sample_fca_colormap(n)`; similar-looking colormaps
+  from other libraries are not a substitute, diverging data included.
+- **Shaped markers alongside colour.** Scatter traces cycle circle, diamond,
+  square and triangle (Plotly's triangle is slightly wider than equilateral).
+  A larger diamond makes a good "look here" marker (`add_look_here_marker`; add
+  it after the series traces). A thin "+" may stand where a star could, but
+  rarely (`build_thin_plus_marker`).
+- **Line weights.** Standalone charts use 2 px lines; the slide profile uses
+  4.5 px. Slides keep the 960x540 logical size: `save_figure` exports at
+  `scale=2`, i.e. 1920x1080 pixels.
+
 ## Notes
 
 - **House convention:** no rotated y-axis title — state the quantity + units in the
   subtitle and set `yaxis_title=None`.
+- **Brand dot is off by default.** The leading dot before the title is an
+  experimental device for standalone charts and is not used on slides. Without it,
+  title and subtitle sit flush left. Turn it on per chart with
+  `apply_header(..., show_dot=True)` (the title then shifts right to clear the dot),
+  or for a whole project with `fcaviz.style.SHOW_DOT = True`.
 - **Fonts.** The brand font is **Titillium Web**. `save_figure` embeds it into HTML
   from the bundled `woff2` files (renders offline, no network). For static PNG/SVG
   via Kaleido the font must also be **installed on the OS**, otherwise Plotly falls

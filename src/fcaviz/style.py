@@ -1,19 +1,20 @@
 """FCA house plotting style for Plotly: palette, layout template, colormap, chrome.
 
-Provides the FCA color palette, the discrete `fca_colorway`, the `fca_template`
-layout, the continuous `fca_colormap`, and the brand "chrome" helpers (leading
-dot, monogram logo, dot-aligned title + subtitle) plus `save_figure` for writing
-self-contained, font-embedded HTML alongside a static PNG.
+Provides the FCA color palette, the discrete `fca_colorway` and marker cycle, the
+standalone `fca_template` and `fca_slide_template` layouts, the continuous
+`fca_colormap` (the default for every colorscale), and the brand "chrome" helpers (title +
+subtitle header, monogram logo, optional leading dot) plus `save_figure` for
+writing self-contained, font-embedded HTML alongside a static PNG.
 
 Usage:
-    from fcaviz import fca_template, fca_colormap, apply_header, save_figure
-    fig.update_layout(template=fca_template)                  # house look
-    fig.add_trace(go.Heatmap(..., colorscale=fca_colormap))   # continuous scale
-    apply_header(fig, title=..., subtitle=..., fig_width=..., fig_height=..., margin_b=...)
+    from fcaviz import fca_template, apply_header, save_figure
+    fig.update_layout(template=fca_template)   # standalone look ("fca_slide" for slides)
+    fig.add_trace(go.Heatmap(...))             # fca_colormap is the default colorscale
+    apply_header(fig, title=..., subtitle=..., fig_width=..., fig_height=...)
     save_figure(fig, out_dir, stem)                           # HTML + PNG
 
-Importing this module also registers the template as "fca" with Plotly, so
-`fig.update_layout(template="fca")` works anywhere afterwards.
+Importing this module also registers the templates as "fca" and "fca_slide"
+with Plotly, so `fig.update_layout(template="fca")` works anywhere afterwards.
 
 House conventions worth knowing:
 - No 90°-rotated y-axis title. State the quantity + units in the subtitle and
@@ -50,11 +51,23 @@ gray = "#B7C1C8"
 light_blue_gray = "#BDCCD9"
 light_gray = "#D6DBDF"
 
-# Discrete trace cycle (used as the template's `colorway`).
+# Discrete trace cycle (used as the templates' `colorway`). Blues and greys
+# alternate in hue and in lightness, so successive series never read as a ramp.
+# highlight_blue is a soft highlight and stays out of the default cycle; in a busy
+# chart, where it would not stand out anyway, it may be added for contrast:
+#   fig.update_layout(colorway=fca_colorway + [highlight_blue])
 fca_colorway = [
-    fca_blue, dark_gray, light_blue, gray, highlight_blue,
-    very_dark_gray, turquois, blue_black, light_blue_gray,
+    fca_blue,        # blue, dark
+    gray,            # grey, light
+    light_blue,      # blue, light
+    very_dark_gray,  # grey, dark
+    turquois,        # blue, light (close to light_blue; four slots apart)
+    blue_gray,       # grey, mid
 ]
+
+# Marker shapes cycled over scatter traces by both templates. Plotly's
+# triangle-up is somewhat wider than equilateral; it has no custom marker paths.
+fca_marker_symbols = ["circle", "diamond", "square", "triangle-up"]
 
 # Brand font family (the embedded weights are "Titillium Web" / "...SemiBold").
 # Use this for any per-element font (annotations, legends, tick labels) that
@@ -108,9 +121,11 @@ def contrast_shades(n: int, max_lighten: float = 0.75) -> list[float]:
 
 
 # ---- Display toggles -------------------------------------------------------
-# Set either to False to hide that element globally. When SHOW_DOT is False
-# the title shifts flush to the left header edge (no indent for the dot gap).
-SHOW_DOT = True    # leading brand dot to the left of the title
+# SHOW_DOT is the default for `show_dot` in header_geometry / apply_header. The
+# leading dot is an experimental device for standalone charts, not for slides,
+# so it is off unless asked for. Without it, title and subtitle sit flush left.
+# SHOW_LOGO = False hides the monogram globally.
+SHOW_DOT = False   # leading brand dot to the left of the title
 SHOW_LOGO = True   # FCA monogram in the bottom-right corner
 
 
@@ -155,11 +170,12 @@ fca_template = go.layout.Template(
         legend=dict(x=1, y=1, xanchor="right", yanchor="top",
                     bgcolor="rgba(255,255,255,0.65)", borderwidth=0,
                     font=dict(family="Titillium Web", size=12)),
-    )
+    ),
+    data=dict(scatter=[
+        go.Scatter(marker=dict(symbol=symbol_name, size=8), line=dict(width=2))
+        for symbol_name in fca_marker_symbols
+    ]),
 )
-
-# Register so `template="fca"` resolves by name too.
-pio.templates["fca"] = fca_template
 
 
 # ---- Brand logo ----------------------------------------------------------
@@ -456,11 +472,53 @@ cm_data_plotly = [
 ]
 fca_colormap = cm_data_plotly
 
-# To sample N shades from one colour family use:
-#   import plotly.colors as pc
-#   shades = pc.sample_colorscale(fca_colormap, [i / (N - 1) for i in range(N)])
-# (Note: sample_colorscale is Python-side and does NOT scale the sub-1 rgb values
-# the way the renderer does, so sample from a 0-255 scale if you need exact hues.)
+
+def sample_fca_colormap(n_colors: int) -> list[str]:
+    """`n_colors` evenly spaced #rrggbb colours from fca_colormap, both ends included.
+    Use this for N discrete shades; plotly.colors.sample_colorscale mishandles the 0-1 rgb()."""
+    rgb_array = np.array(cm_data)
+    row_indices = np.linspace(0, len(rgb_array) - 1, n_colors).round().astype(int)
+    hex_colors = ["#" + "".join(f"{round(c * 255):02x}" for c in rgb_array[i])
+                  for i in row_indices]
+    return hex_colors
+
+
+# ---- fca_colormap as every continuous default ---------------------------------
+# The corporate design has one continuous colormap and it is used wherever a
+# colormap is needed, diverging data included. These defaults reach go.* traces
+# that set no colorscale and plotly express (which reads layout.colorscale).
+_COLORSCALE_TRACE_TYPES = (
+    "heatmap", "contour", "histogram2d", "histogram2dcontour", "surface",
+    "choropleth", "choroplethmap", "densitymap",
+)
+fca_template.layout.colorscale = dict(
+    sequential=fca_colormap, sequentialminus=fca_colormap, diverging=fca_colormap,
+)
+fca_template.layout.coloraxis.colorscale = fca_colormap
+for _trace_type in _COLORSCALE_TRACE_TYPES:
+    fca_template.data[_trace_type] = [{"type": _trace_type, "colorscale": fca_colormap}]
+
+
+# ---- Slide profile ---------------------------------------------------------------
+# Same palette, colormap and markers; heavier lines, bigger markers and fonts for
+# slides. Keep the 960x540 logical size and export at scale=2 for 1920x1080 pixels.
+fca_slide_template = go.layout.Template(fca_template)
+fca_slide_template.layout.update(
+    margin_b=84,   # room for the larger tick labels above the corner logo
+    title_font_size=28,
+    font_size=22,
+    xaxis=dict(title_font_size=22, linewidth=3),
+    yaxis=dict(title_font_size=22),
+    legend_font_size=18,
+)
+fca_slide_template.data.scatter = [
+    go.Scatter(marker=dict(symbol=symbol_name, size=12), line=dict(width=4.5))
+    for symbol_name in fca_marker_symbols
+]
+
+# Register so `template="fca"` / `template="fca_slide"` resolve by name too.
+pio.templates["fca"] = fca_template
+pio.templates["fca_slide"] = fca_slide_template
 
 
 # ---- Titillium Web font embedding -----------------------------------------
@@ -553,11 +611,31 @@ def save_figure(fig, out_dir, stem: str, *, scale: int = 2) -> list[str]:
 # (translucent) Plotly legend instead.
 #
 #   fig.update_layout(showlegend=False)
-#   add_trace_label(fig, "solar", color=sand_yellow, x=0.97, y=0.92)
-#   add_trace_label(fig, "wind",  color=fca_blue,    x=0.97, y=0.81)
+#   add_trace_label(fig, "solar", color=fca_blue,       x=0.97, y=0.92)
+#   add_trace_label(fig, "wind",  color=very_dark_gray, x=0.97, y=0.81)
 #
 # x/y are paper coords (0–1). xanchor="right" pins the right edge of the box.
 # Vertical spacing: ~0.11 per label at font_size=14 with fig_height≈520.
+
+def add_look_here_marker(fig, x, y, *, size: float = None,
+                         color: str = highlight_blue, **trace_kwargs) -> None:
+    """Mark the point (x, y) with a large diamond, by default twice the template's marker size.
+    Add it after the series traces; extra kwargs (e.g. row/col, xaxis) go to add_scatter."""
+    if size is None:
+        size = 2 * fig.layout.template.data.scatter[0].marker.size
+    fig.add_scatter(x=[x], y=[y], mode="markers", showlegend=False, hoverinfo="skip",
+                    marker=dict(symbol="diamond", size=size, color=color,
+                                line=dict(width=0)),
+                    **trace_kwargs)
+
+
+def build_thin_plus_marker(color: str, size: float = 10, line_width: float = 1.5) -> dict:
+    """Marker dict for a thin, stroke-only "+" (plotly `cross-thin`): `marker=build_thin_plus_marker(c)`.
+    Use sparingly, where a star might otherwise go."""
+    thin_plus_marker = dict(symbol="cross-thin", size=size, color=color,
+                            line=dict(width=line_width, color=color))
+    return thin_plus_marker
+
 
 def add_trace_label(fig, text: str, color: str,
                     x: float = 0.97, y: float = 0.90,
@@ -575,33 +653,47 @@ def add_trace_label(fig, text: str, color: str,
 
 # ---- Header / brand helpers ------------------------------------------------
 
-def header_geometry(fig_width: int, fig_height: int,
+def read_header_template(fig) -> go.layout.Template:
+    """The figure's template, checked to carry the title font size the header geometry needs."""
+    figure_template = fig.layout.template
+    if figure_template.layout.title.font.size is None:
+        raise ValueError("apply the 'fca' or 'fca_slide' template to the figure "
+                         "before adding the header chrome")
+    return figure_template
+
+
+def header_geometry(fig, fig_width: int, fig_height: int,
                     margin_l: int = None, margin_r: int = None,
-                    margin_t: int = None) -> dict:
+                    margin_t: int = None, show_dot: bool = None) -> dict:
     """Pixel/fraction coordinates shared by dot, title, subtitle, and footnote.
 
-    Returns a dict with:
+    Sizes and default margins come from the figure's template ('fca' or
+    'fca_slide'). `show_dot` defaults to SHOW_DOT (False). Returns a dict with:
         header_left_px  left edge of all header items (px from figure left)
         header_x_shift  shift from paper x=0 to header_left (px, usually negative)
         dot_d           leading-dot diameter (px)
-        title_x         paper-fraction x for the title (clears dot when SHOW_DOT)
+        title_x         paper-fraction x for the title (clears the dot when shown)
         dot_up          yshift (px, positive = up) to center dot on the cap-line
+        show_dot        whether apply_dot draws the dot for this geometry
     """
+    if show_dot is None:
+        show_dot = SHOW_DOT
+    figure_template = read_header_template(fig)
     if margin_l is None:
-        margin_l = fca_template.layout.margin.l
+        margin_l = figure_template.layout.margin.l
     if margin_r is None:
-        margin_r = fca_template.layout.margin.r
+        margin_r = figure_template.layout.margin.r
     if margin_t is None:
-        margin_t = fca_template.layout.margin.t
-    title_size = fca_template.layout.title.font.size
+        margin_t = figure_template.layout.margin.t
+    title_size = figure_template.layout.title.font.size
     header_left_px = margin_l - 30
     header_x_shift = header_left_px - margin_l
     dot_d = 0.3125 * title_size
-    if SHOW_DOT:
+    if show_dot:
         title_x = (header_left_px + dot_d + title_size / 4) / fig_width
     else:
         title_x = header_left_px / fig_width
-    cap_mid_px = (1 - fca_template.layout.title.y) * fig_height + 0.42 * title_size
+    cap_mid_px = (1 - figure_template.layout.title.y) * fig_height + 0.42 * title_size
     dot_up = margin_t - cap_mid_px
     return dict(
         header_left_px=header_left_px,
@@ -609,12 +701,13 @@ def header_geometry(fig_width: int, fig_height: int,
         dot_d=dot_d,
         title_x=title_x,
         dot_up=dot_up,
+        show_dot=show_dot,
     )
 
 
 def apply_dot(fig, geom: dict) -> None:
-    """Draw the leading brand dot if SHOW_DOT is True."""
-    if not SHOW_DOT:
+    """Draw the leading brand dot if `geom` (from header_geometry) has show_dot set."""
+    if not geom["show_dot"]:
         return
     d = geom["dot_d"]
     fig.add_shape(
@@ -677,24 +770,31 @@ def apply_logo(fig, fig_width: int, fig_height: int,
 
 
 def apply_header(fig, *, title: str, subtitle: str,
-                 fig_width: int, fig_height: int, margin_b: int,
+                 fig_width: int, fig_height: int, margin_b: int = None,
                  margin_l: int = None, margin_r: int = None,
-                 margin_t: int = None, show_logo: bool = True) -> dict:
-    """Apply the full FCA header chrome to `fig`: dot-aligned title, the subtitle line beneath it,
-    the leading brand dot, and the bottom-right monogram. Also pins the figure size and all four
-    margins (the dot/logo geometry depends on them). Left/right/top default to the template's
+                 margin_t: int = None, show_logo: bool = True,
+                 show_dot: bool = None) -> dict:
+    """Apply the FCA header chrome to `fig`: title, the subtitle line beneath it, and the
+    bottom-right monogram, all flush with the left header edge. Pass `show_dot=True` to add the
+    leading brand dot (an experimental standalone-chart device, not for slides; default SHOW_DOT,
+    which is False); the title then shifts right to clear it. Sizes follow the figure's template
+    ('fca' or 'fca_slide'), so set it first. Also pins the figure size and all four
+    margins (the header/logo geometry depends on them). All four default to the template's
     margins; override them (e.g. a wide right margin for an external legend, or tight margins for a
     full-bleed map) so the chrome lines up with the actual plot area. The top and left margins are
     grown if too small to fit the header band (see below). Pass `show_logo=False` to suppress the
     monogram (e.g. on a map whose colorbar already occupies the bottom-right). Set the template and
     everything else (axes, legend, traces) on `fig` first, then call this. Returns the header
     `geom`."""
+    figure_template = read_header_template(fig)
     if margin_l is None:
-        margin_l = fca_template.layout.margin.l
+        margin_l = figure_template.layout.margin.l
     if margin_r is None:
-        margin_r = fca_template.layout.margin.r
+        margin_r = figure_template.layout.margin.r
     if margin_t is None:
-        margin_t = fca_template.layout.margin.t
+        margin_t = figure_template.layout.margin.t
+    if margin_b is None:
+        margin_b = figure_template.layout.margin.b
     # The header hangs 30 px left of the plot area, so the left margin needs room
     # or the dot/title clip off the figure edge.
     margin_l = max(margin_l, 40)
@@ -702,12 +802,13 @@ def apply_header(fig, *, title: str, subtitle: str,
     # while the subtitle is pinned just inside the top margin. On a tall figure
     # with a small top margin the two collide, so grow margin_t to guarantee the
     # subtitle clears the title's baseline (callers may pass a larger value).
-    _subtitle_size = 18
-    _title_y = fca_template.layout.title.y
-    _title_size = fca_template.layout.title.font.size
-    _min_margin_t = (1 - _title_y) * fig_height + _title_size + _subtitle_size + 18
-    margin_t = max(margin_t, int(_min_margin_t) + 1)
-    geom = header_geometry(fig_width, fig_height, margin_l, margin_r, margin_t)
+    subtitle_size = figure_template.layout.font.size
+    title_y = figure_template.layout.title.y
+    title_size = figure_template.layout.title.font.size
+    min_margin_t = (1 - title_y) * fig_height + title_size + subtitle_size + 18
+    margin_t = max(margin_t, int(min_margin_t) + 1)
+    geom = header_geometry(fig, fig_width, fig_height, margin_l, margin_r, margin_t,
+                           show_dot=show_dot)
     fig.update_layout(title=dict(text=title, x=geom["title_x"]),
                       width=fig_width, height=fig_height,
                       margin=dict(l=margin_l, r=margin_r, t=margin_t, b=margin_b))
@@ -715,7 +816,7 @@ def apply_header(fig, *, title: str, subtitle: str,
         text=subtitle, xref="paper", yref="paper",
         x=0, xanchor="left", xshift=geom["header_x_shift"],
         y=1, yanchor="bottom", yshift=12, showarrow=False,
-        font=dict(family=BRAND_FONT, size=18, color=blue_black),
+        font=dict(family=BRAND_FONT, size=subtitle_size, color=blue_black),
     )
     apply_dot(fig, geom)
     if show_logo:
