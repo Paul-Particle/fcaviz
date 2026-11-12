@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- **`fca_colormap` renders in colour everywhere.** Its rgb() strings are now 0-255
+  (from the unchanged 0-1 `cm_data`). The 0-1 strings rendered near-black on plotly 7,
+  and on plotly 6 for markers using the layout default. Where they did render, output
+  is pixel-identical.
+
 ## 0.2.0
 
 Changes the default look of existing charts.
