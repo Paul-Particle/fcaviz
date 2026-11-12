@@ -37,9 +37,9 @@ released tag** (see [Releasing](#releasing) for the tag list):
 
 ```sh
 # pip — pinned to a tag
-pip install "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
+pip install "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.1"
 # uv — pinned to a tag
-uv add "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
+uv add "git+https://github.com/Paul-Particle/fcaviz.git@v0.2.1"
 ```
 
 Add the `export` extra for static PNG/SVG output via `save_figure` (pulls Kaleido):
@@ -65,7 +65,7 @@ dependencies:
   - numpy
   - pip
   - pip:
-      - "fcaviz @ git+https://github.com/Paul-Particle/fcaviz.git@v0.2.0"
+      - "fcaviz @ git+https://github.com/Paul-Particle/fcaviz.git@v0.2.1"
       # for PNG/SVG export, use fcaviz[export] instead (pulls Kaleido)
 ```
 
